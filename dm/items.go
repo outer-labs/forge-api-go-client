@@ -112,7 +112,7 @@ func getItemTip(path, projectKey, itemKey, token string) (result ItemDetails, er
 	return
 }
 
-func getItemVersions(path, projectKey, itemKey, refType, id, extension, versionNumber, page, limit string, token string) (result ItemDetails, err error) {
+func getItemVersions(path, projectKey, itemKey string, query url.Vaues, token string) (result ItemDetails, err error) {
 	task := http.Client{}
 
 	req, err := http.NewRequest("GET",
@@ -124,26 +124,40 @@ func getItemVersions(path, projectKey, itemKey, refType, id, extension, versionN
 	}
 
 	params := req.URL.Query()
-	if len(refType) != 0 {
-		params.Add("filter[type]", refType)
-	}
-	if len(id) != 0 {
-		params.Add("filter[id]", id)
-	}
-	if len(extension) != 0 {
-		params.Add("filter[extension.type]", extension)
-	}
-	if len(versionNumber) != 0 {
-		params.Add("filter[versionNumber]", versionNumber)
-	}
-	if len(page) != 0 {
-		params.Add("page[number]", page)
-	}
-	if len(limit) != 0 {
-		params.Add("page[limit]", limit)
-	}
+	
+	q := NewQuery().FilterType()
+	NewQuery().FilterId()
+	NewQuery().FilterExtensionType()
+	NewQuery().FilterVersionNumber()
+	NewQuery().PageNumber()
+	NewQuery().PageLimit()
+	params.Values()
+	req.URL.RawQuery = q.String()
 
-	req.URL.RawQuery = params.Encode()
+
+
+
+	// if len(refType) != 0 {
+	// 	params.Add("filter[type]", refType)
+	// }
+	// if len(id) != 0 {
+	// 	params.Add("filter[id]", id)
+	// }
+	// if len(extension) != 0 {
+	// 	params.Add("filter[extension.type]", extension)
+	// }
+	// if len(versionNumber) != 0 {
+	// 	params.Add("filter[versionNumber]", versionNumber)
+	// }
+	// if len(page) != 0 {
+	// 	params.Add("page[number]", page)
+	// }
+	// if len(limit) != 0 {
+	// 	params.Add("page[limit]", limit)
+	// }
+	// req.URL.RawQuery = params.Encode()
+
+
 
 
 	req.Header.Set("Authorization", "Bearer "+token)
