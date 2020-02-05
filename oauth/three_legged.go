@@ -36,8 +36,8 @@ func NewThreeLeggedClient(clientID, clientSecret, redirectURI string) ThreeLegge
 	}
 }
 
-// Authorize method returns an URL to redirect an end user, where it will be asked to give his consent for app to
-//access the specified resources.
+// Authorize method returns an URL to redirect an end user, where they will be asked to give their consent for app to
+// access the specified resources.
 //
 // The resources for which the permission is asked are specified as a space-separated list of required scopes.
 // State can be used to specify, as URL-encoded payload, some arbitrary data that the authentication flow will pass back
