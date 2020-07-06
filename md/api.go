@@ -44,6 +44,22 @@ func NewAPIWithCredentials(ClientID string, ClientSecret string) ModelDerivative
 	}
 }
 
+// API struct holds all paths necessary to access Model Derivative API
+type ModelDerivativeAPI3L struct {
+	Auth                oauth.ThreeLeggedAuth
+	Token               TokenRefresher
+	ModelDerivativePath string
+}
+
+// NewAPIWithCredentials returns a Model Derivative API client with default configurations
+func NewAPI3LWithCredentials(auth oauth.ThreeLeggedAuth, token *oauth.RefreshableToken) *ModelDerivativeAPI3L {
+	return &ModelDerivativeAPI3L{
+		Auth:                auth,
+		Token:               token,
+		ModelDerivativePath: "/modelderivative/v2/designdata",
+	}
+}
+
 //TranslationParams is used when specifying the translation jobs
 type TranslationParams struct {
 	Input  TranslationInput `json:"input"`
@@ -196,6 +212,17 @@ func (a ModelDerivativeAPI) GetManifest(urn string) (result ManifestResult, err 
 	return
 }
 
+func (a ModelDerivativeAPI3L) GetManifest3L(urn string) (result ManifestResult, err error) {
+	if err = a.Token.RefreshTokenIfRequired(a.Auth); err != nil {
+		return
+	}
+
+	path := a.Auth.Host + a.ModelDerivativePath
+	result, err = getManifest(path, urn, a.Token.Bearer().AccessToken)
+
+	return
+}
+
 func (a ModelDerivativeAPI) GetMetadata(urn string) (result MetadataResult, err error) {
 	bearer, err := a.Authenticate("data:read")
 	if err != nil {
@@ -204,6 +231,17 @@ func (a ModelDerivativeAPI) GetMetadata(urn string) (result MetadataResult, err 
 
 	path := a.Host + a.ModelDerivativePath
 	result, err = getMetadata(path, urn, bearer.AccessToken)
+
+	return
+}
+
+func (a ModelDerivativeAPI3L) GetMetadata3L(urn string) (result MetadataResult, err error) {
+	if err = a.Token.RefreshTokenIfRequired(a.Auth); err != nil {
+		return
+	}
+
+	path := a.Auth.Host + a.ModelDerivativePath
+	result, err = getMetadata(path, urn, a.Token.Bearer().AccessToken)
 
 	return
 }
@@ -220,6 +258,19 @@ func (a ModelDerivativeAPI) GetObjectTree(urn string, viewId string) (status int
 	return
 }
 
+func (a ModelDerivativeAPI3L) GetObjectTree3L(urn string, viewId string) (status int, result TreeResult, err error) {
+	if err = a.Token.RefreshTokenIfRequired(a.Auth); err != nil {
+		return
+	}
+
+	path := a.Auth.Host + a.ModelDerivativePath
+	status, result, err = getObjectTree(path, urn, viewId, a.Token.Bearer().AccessToken)
+
+	return
+}
+
+
+
 func (a ModelDerivativeAPI) GetPropertiesStream(urn string, viewId string) (status int,
 	result io.ReadCloser, err error) {
 	bearer, err := a.Authenticate("data:read")
@@ -229,6 +280,17 @@ func (a ModelDerivativeAPI) GetPropertiesStream(urn string, viewId string) (stat
 
 	path := a.Host + a.ModelDerivativePath
 	status, result, err = getPropertiesStream(path, urn, viewId, bearer.AccessToken)
+	return
+}
+
+func (a ModelDerivativeAPI3L) GetPropertiesStream3L(urn string, viewId string) (status int,
+	result io.ReadCloser, err error) {
+	if err = a.Token.RefreshTokenIfRequired(a.Auth); err != nil {
+		return
+	}
+
+	path := a.Auth.Host + a.ModelDerivativePath
+	status, result, err = getPropertiesStream(path, urn, viewId, a.Token.Bearer().AccessToken)
 	return
 }
 
@@ -251,6 +313,17 @@ func (a ModelDerivativeAPI) GetThumbnail(urn string) (reader io.ReadCloser, err 
 
 	path := a.Host + a.ModelDerivativePath
 	reader, err = getThumbnail(path, urn, bearer.AccessToken)
+
+	return
+}
+
+func (a ModelDerivativeAPI3L) GetThumbnail3L(urn string) (reader io.ReadCloser, err error) {
+	if err = a.Token.RefreshTokenIfRequired(a.Auth); err != nil {
+		return
+	}
+
+	path := a.Auth.Host + a.ModelDerivativePath
+	reader, err = getThumbnail(path, urn, a.Token.Bearer().AccessToken)
 
 	return
 }

@@ -3,8 +3,8 @@ package dm
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 )
@@ -63,8 +63,6 @@ func (api BucketAPI) ListObjects(bucketKey, limit, beginsWith, startAt string) (
 	return listObjects(path, bucketKey, limit, beginsWith, startAt, bearer.AccessToken)
 }
 
-
-
 /*
  *	SUPPORT FUNCTIONS
  */
@@ -73,7 +71,7 @@ func listObjects(path, bucketKey, limit, beginsWith, startAt, token string) (res
 	task := http.Client{}
 
 	req, err := http.NewRequest("GET",
-		path + "/" + bucketKey + "/objects",
+		path+"/"+bucketKey+"/objects",
 		nil,
 	)
 
@@ -119,7 +117,7 @@ func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, tok
 
 	//dataContent := bytes.NewReader(data)
 	req, err := http.NewRequest("PUT",
-		path+"/"+ bucketKey + "/objects/" + objectName,
+		path+"/"+bucketKey+"/objects/"+objectName,
 		dataContent)
 
 	if err != nil {
@@ -151,7 +149,7 @@ func downloadObject(path, bucketKey, objectName string, token string) (result io
 	task := http.Client{}
 
 	req, err := http.NewRequest("GET",
-		path+"/"+ bucketKey + "/objects/" + objectName,
+		path+"/"+bucketKey+"/objects/"+objectName,
 		nil)
 
 	if err != nil {
