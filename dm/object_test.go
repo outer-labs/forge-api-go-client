@@ -1,6 +1,7 @@
 package dm_test
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"testing"
@@ -38,7 +39,7 @@ func TestBucketAPI_ListObjects(t *testing.T) {
 	})
 }
 
-func TestBucketAPI_UploadObject(t *testing.T) {
+func TestBucketAPI_UploadSmallObject(t *testing.T) {
 
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
@@ -49,7 +50,7 @@ func TestBucketAPI_UploadObject(t *testing.T) {
 
 	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
 
-	tempBucket := "some_temp_bucket_for_testing"
+	tempBucket := "some_temp_bucket_for_testing_small_upload"
 	testFilePath := "../assets/HelloWorld.rvt"
 
 	t.Run("Create a temp bucket to store an object", func(t *testing.T) {
@@ -81,6 +82,60 @@ func TestBucketAPI_UploadObject(t *testing.T) {
 			t.Fatal("Cannot read the testfile")
 		}
 
+		result, err := bucketAPI.UploadObject(tempBucket, "temp_file.rvt", data) // doesn't want []byte as data
+
+		if err != nil {
+			t.Fatal("Could not upload the test object, got: ", err.Error())
+		}
+
+		if result.Size == 0 {
+			t.Fatal("The test object was uploaded but it is zero-sized")
+		}
+	})
+
+	t.Run("Delete the temp bucket", func(t *testing.T) {
+		err := bucketAPI.DeleteBucket(tempBucket)
+		if err != nil {
+			t.Error("Could not delete temp bucket, got: ", err.Error())
+		}
+	})
+}
+
+func TestBucketAPI_UploadLargeObject(t *testing.T) {
+	// prepare the credentials
+	clientID := os.Getenv("FORGE_CLIENT_ID")
+	clientSecret := os.Getenv("FORGE_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		t.Skipf("No Forge credentials present; skipping test")
+	}
+
+	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
+
+	tempBucket := "temp_bucket_for_testing_large_upload"
+
+	// this is a fake file. We're using 700mb of data which reliably
+	// fails without chunking.
+	size := 700000000
+	data := bytes.NewBuffer(make([]byte, size))
+
+	t.Run("Create a temp bucket to store an object", func(t *testing.T) {
+		_, err := bucketAPI.CreateBucket(tempBucket, "transient")
+		if err != nil {
+			t.Error("Could not create temp bucket, got: ", err.Error())
+		}
+	})
+
+	t.Run("List objects in temp bucket, to make sure it is empty", func(t *testing.T) {
+		content, err := bucketAPI.ListObjects(tempBucket, "", "", "")
+		if err != nil {
+			t.Fatalf("Failed to list bucket content: %s\n", err.Error())
+		}
+		if len(content.Items) != 0 {
+			t.Fatalf("temp bucket supposed to be empty, got %#v", content)
+		}
+	})
+
+	t.Run("Upload an object into temp bucket", func(t *testing.T) {
 		result, err := bucketAPI.UploadObject(tempBucket, "temp_file.rvt", data) // doesn't want []byte as data
 
 		if err != nil {

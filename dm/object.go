@@ -1,12 +1,15 @@
 package dm
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // ObjectDetails reflects the data presented when uploading an object to a bucket or requesting details on object.
@@ -111,17 +114,28 @@ func listObjects(path, bucketKey, limit, beginsWith, startAt, token string) (res
 	return
 }
 
-func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
+const maxUploadThreshold = 100000000
 
+func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
+	buf := &bytes.Buffer{}
+	nRead, err := io.Copy(buf, dataContent)
+
+	if nRead > maxUploadThreshold {
+		return putObjectChunked(path, bucketKey, objectName, buf, token)
+	}
+
+	return putObject(path, bucketKey, objectName, buf, token)
+}
+
+func putObject(path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
 	task := http.Client{}
 
-	//dataContent := bytes.NewReader(data)
 	req, err := http.NewRequest("PUT",
 		path+"/"+bucketKey+"/objects/"+objectName,
 		dataContent)
 
 	if err != nil {
-		return
+		return result, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -142,7 +156,74 @@ func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, tok
 	err = decoder.Decode(&result)
 
 	return
+}
 
+const chunkSize = 10000000
+
+// putObjectChunked runs a series of HTTP PUT operations, each of which
+// represents the upload of a chunk of the object.
+//
+// The Forge API doesn't require the chunks to be uploaded in order, so
+// in theory these operations could be executed in parallel. In practice,
+// there's an account-level rate limit which would cause problems with
+// large files, especially when other API requests are being made at the
+// same time.
+//
+// Because of that rate limiting, and in the absence of a managed request
+// pool, it's not safe to upload the chunks in parallel.
+//
+func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, token string) (result ObjectDetails, err error) {
+	total := int64(data.Len())
+	remaining := total
+	sessionId := fmt.Sprintf("%d", time.Now().Unix()) // FIXME: better hash including object name?
+	task := http.Client{}
+
+	for remaining > 0 {
+		chunk := &bytes.Buffer{}
+		chunkSize, err := io.CopyN(chunk, data, chunkSize)
+		if err != nil {
+			return result, fmt.Errorf("failed to copy: %w", err)
+		}
+
+		req, err := http.NewRequest("PUT",
+			path+"/"+bucketKey+"/objects/"+objectName+"/resumable",
+			chunk,
+		)
+
+		if err != nil {
+			return result, err
+		}
+
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", total-remaining, total-remaining+chunkSize-1, total))
+		req.Header.Set("Session-Id", sessionId)
+
+		response, err := task.Do(req)
+		if err != nil {
+			return result, fmt.Errorf("failed to execute request: %w", err)
+		}
+		defer response.Body.Close()
+
+		switch response.StatusCode {
+
+		// A chunk has been uploaded
+		case http.StatusAccepted:
+			remaining -= chunkSize
+			continue
+
+		// The final chunk has been uploaded,
+		// and the process is complete
+		case http.StatusOK:
+			decoder := json.NewDecoder(response.Body)
+			err = decoder.Decode(&result)
+			return result, err
+
+		default:
+			content, _ := ioutil.ReadAll(response.Body)
+			return result, errors.New("[" + strconv.Itoa(response.StatusCode) + "] " + string(content))
+		}
+	}
+	return
 }
 
 func downloadObject(path, bucketKey, objectName string, token string) (result io.ReadCloser, err error) {
