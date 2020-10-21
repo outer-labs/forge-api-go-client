@@ -113,9 +113,9 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 
 	tempBucket := "temp_bucket_for_testing_large_upload"
 
-	// this is a fake file. We're using 700mb of data which reliably
+	// this is a fake file. We're using a little over 700mb of data which reliably
 	// fails without chunking.
-	size := 700000000
+	size := 700000100
 	data := bytes.NewBuffer(make([]byte, size))
 
 	t.Run("Create a temp bucket to store an object", func(t *testing.T) {

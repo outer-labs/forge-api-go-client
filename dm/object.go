@@ -119,6 +119,9 @@ const maxUploadThreshold = 100000000
 func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
 	buf := &bytes.Buffer{}
 	nRead, err := io.Copy(buf, dataContent)
+	if err != nil {
+		return result, err
+	}
 
 	if nRead > maxUploadThreshold {
 		return putObjectChunked(path, bucketKey, objectName, buf, token)
@@ -180,7 +183,11 @@ func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, to
 
 	for remaining > 0 {
 		chunk := &bytes.Buffer{}
-		chunkSize, err := io.CopyN(chunk, data, chunkSize)
+		size := int64(chunkSize)
+		if chunkSize > remaining {
+			size = remaining
+		}
+		chunkSize, err := io.CopyN(chunk, data, size)
 		if err != nil {
 			return result, fmt.Errorf("failed to copy: %w", err)
 		}
