@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -34,7 +35,7 @@ type BucketContent struct {
 // UploadObject adds to specified bucket the given data (can originate from a multipart-form or direct file read).
 // Return details on uploaded object, including the object URN. Check ObjectDetails struct.
 func (api BucketAPI) UploadObject(bucketKey string, objectName string, reader io.Reader) (result ObjectDetails, err error) {
-	bearer, err := api.Authenticate("data:write")
+	bearer, err := api.Authenticate("data:write data:read")
 	if err != nil {
 		return
 	}
@@ -124,7 +125,11 @@ func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, tok
 	}
 
 	if nRead > maxUploadThreshold {
-		return putObjectChunked(path, bucketKey, objectName, buf, token)
+		if _, err := putObjectChunked(path, bucketKey, objectName, buf, token); err != nil {
+			return ObjectDetails{}, err
+		}
+
+		return waitForObjectRecombination(path, bucketKey, objectName, token)
 	}
 
 	return putObject(path, bucketKey, objectName, buf, token)
@@ -157,80 +162,145 @@ func putObject(path, bucketKey, objectName string, dataContent io.Reader, token 
 
 	decoder := json.NewDecoder(response.Body)
 	err = decoder.Decode(&result)
-
 	return
 }
 
-const chunkSize = 10000000
+const chunkSize = 5000000
 
-// putObjectChunked runs a series of HTTP PUT operations, each of which
-// represents the upload of a chunk of the object.
-//
-// The Forge API doesn't require the chunks to be uploaded in order, so
-// in theory these operations could be executed in parallel. In practice,
-// there's an account-level rate limit which would cause problems with
-// large files, especially when other API requests are being made at the
-// same time.
-//
-// Because of that rate limiting, and in the absence of a managed request
-// pool, it's not safe to upload the chunks in parallel.
-//
 func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, token string) (result ObjectDetails, err error) {
 	total := int64(data.Len())
-	remaining := total
 	sessionId := fmt.Sprintf("%d", time.Now().Unix()) // FIXME: better hash including object name?
+
+	wg := sync.WaitGroup{}
+	errChan := make(chan error)
+	resultChan := make(chan ObjectDetails)
+
+	go func() {
+		remaining := total
+		for remaining > 0 {
+			chunk := &bytes.Buffer{}
+			size := int64(chunkSize)
+			if chunkSize > remaining {
+				size = remaining
+			}
+			_, err := io.CopyN(chunk, data, size)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to copy: %w", err)
+				return
+			}
+
+			wg.Add(1)
+
+			go func(remaining, size int64, chunk *bytes.Buffer) {
+				defer wg.Done()
+
+				task := http.Client{}
+				req, err := http.NewRequest("PUT",
+					path+"/"+bucketKey+"/objects/"+objectName+"/resumable",
+					chunk,
+				)
+
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				req.Header.Set("Authorization", "Bearer "+token)
+				req.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", total-remaining, total-remaining+size-1, total))
+				req.Header.Set("Session-Id", sessionId)
+				req.Header.Set("Content-Type", "application/stream")
+				req.Header.Set("Content-Length", fmt.Sprintf("%d", size))
+
+				response, err := task.Do(req)
+				if err != nil {
+					errChan <- fmt.Errorf("failed to execute request: %w", err)
+				}
+				defer response.Body.Close()
+
+				switch response.StatusCode {
+
+				// A chunk has been uploaded
+				case http.StatusAccepted:
+					return
+
+				// The final chunk has been uploaded,
+				// and the process is complete
+				case http.StatusOK:
+					output := ObjectDetails{}
+					decoder := json.NewDecoder(response.Body)
+					err = decoder.Decode(&output)
+					resultChan <- output
+
+				default:
+					content, _ := ioutil.ReadAll(response.Body)
+					errChan <- errors.New("[" + strconv.Itoa(response.StatusCode) + "] " + string(content))
+				}
+			}(remaining, size, chunk)
+
+			remaining -= size
+		}
+
+		wg.Wait()
+	}()
+
+	select {
+	case err := <-errChan:
+		return ObjectDetails{}, err
+	case res := <-resultChan:
+		return res, nil
+	}
+}
+
+// The Forge API doesn't give us many clues out when a chunked upload is recombined.
+// The only way to be sure is to poll the object details API until the SHA1 hash
+// is populated.
+func waitForObjectRecombination(path, bucketKey, objectName, token string) (result ObjectDetails, err error) {
 	task := http.Client{}
 
-	for remaining > 0 {
-		chunk := &bytes.Buffer{}
-		size := int64(chunkSize)
-		if chunkSize > remaining {
-			size = remaining
-		}
-		chunkSize, err := io.CopyN(chunk, data, size)
-		if err != nil {
-			return result, fmt.Errorf("failed to copy: %w", err)
-		}
+	req, err := http.NewRequest("GET",
+		path+"/"+bucketKey+"/objects/"+objectName+"/details",
+		nil,
+	)
+	if err != nil {
+		return ObjectDetails{}, err
+	}
 
-		req, err := http.NewRequest("PUT",
-			path+"/"+bucketKey+"/objects/"+objectName+"/resumable",
-			chunk,
-		)
+	req.Header.Set("Authorization", "Bearer "+token)
 
-		if err != nil {
-			return result, err
-		}
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-		req.Header.Set("Authorization", "Bearer "+token)
-		req.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", total-remaining, total-remaining+chunkSize-1, total))
-		req.Header.Set("Session-Id", sessionId)
+	timeout := time.After(10 * time.Minute)
 
-		response, err := task.Do(req)
-		if err != nil {
-			return result, fmt.Errorf("failed to execute request: %w", err)
-		}
-		defer response.Body.Close()
+	for {
+		select {
+		case <-ticker.C:
+			response, err := task.Do(req)
+			if err != nil {
+				return ObjectDetails{}, fmt.Errorf("failed to execute request: %w", err)
+			}
+			defer response.Body.Close()
 
-		switch response.StatusCode {
+			switch response.StatusCode {
 
-		// A chunk has been uploaded
-		case http.StatusAccepted:
-			remaining -= chunkSize
-			continue
+			case http.StatusOK:
+				output := ObjectDetails{}
+				decoder := json.NewDecoder(response.Body)
+				err = decoder.Decode(&output)
 
-		// The final chunk has been uploaded,
-		// and the process is complete
-		case http.StatusOK:
-			decoder := json.NewDecoder(response.Body)
-			err = decoder.Decode(&result)
-			return result, err
+				if output.SHA1 != "" {
+					return output, nil
+				}
 
-		default:
-			content, _ := ioutil.ReadAll(response.Body)
-			return result, errors.New("[" + strconv.Itoa(response.StatusCode) + "] " + string(content))
+			default:
+				content, _ := ioutil.ReadAll(response.Body)
+				return ObjectDetails{}, errors.New("[" + strconv.Itoa(response.StatusCode) + "] " + string(content))
+			}
+
+		case <-timeout:
+			return ObjectDetails{}, fmt.Errorf("timed out waiting for file recombination")
 		}
 	}
-	return
 }
 
 func downloadObject(path, bucketKey, objectName string, token string) (result io.ReadCloser, err error) {

@@ -111,11 +111,11 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 
 	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
 
-	tempBucket := "temp_bucket_for_testing_large_upload"
+	tempBucket := "temp_bucket_for_testing_resumable_upload"
 
-	// this is a fake file. We're using a little over 700mb of data which reliably
+	// this is a fake file. We're using a little over 100mb of data which reliably
 	// fails without chunking.
-	size := 700000100
+	size := 105000000
 	data := bytes.NewBuffer(make([]byte, size))
 
 	t.Run("Create a temp bucket to store an object", func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 	})
 
 	t.Run("Upload an object into temp bucket", func(t *testing.T) {
-		result, err := bucketAPI.UploadObject(tempBucket, "temp_file.rvt", data) // doesn't want []byte as data
+		result, err := bucketAPI.UploadObject(tempBucket, "temp_file_chunked.rvt", data) // doesn't want []byte as data
 
 		if err != nil {
 			t.Fatal("Could not upload the test object, got: ", err.Error())
