@@ -97,14 +97,6 @@ type DerivativeSpec struct {
 	Status       string         `json:"status,omitempty"`
 	Progress     string         `json:"progress,omitempty"`
 	Children     []ChildrenSpec `json:"children,omitempty"`
-	Message      []MessageSpec  `json:"messages,omitempty"`
-}
-
-type MessageSpec struct {
-	Name    string `json:"name,omitempty"`
-	Type    string `json:"type,omitempty"`
-	Message string `json:"message,omitempty"`
-	Code    string `json:"code,omitempty"`
 }
 
 type ChildrenSpec struct {
