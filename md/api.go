@@ -97,6 +97,14 @@ type DerivativeSpec struct {
 	Status       string         `json:"status,omitempty"`
 	Progress     string         `json:"progress,omitempty"`
 	Children     []ChildrenSpec `json:"children,omitempty"`
+	Message      []MessageSpec  `json:"messages,omitempty"`
+}
+
+type MessageSpec struct {
+	Name    string `json:"name,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Message string `json:"message,omitempty"`
+	Code    string `json:"code,omitempty"`
 }
 
 type ChildrenSpec struct {
@@ -268,8 +276,6 @@ func (a ModelDerivativeAPI3L) GetObjectTree3L(urn string, viewId string) (status
 
 	return
 }
-
-
 
 func (a ModelDerivativeAPI) GetPropertiesStream(urn string, viewId string) (status int,
 	result io.ReadCloser, err error) {
