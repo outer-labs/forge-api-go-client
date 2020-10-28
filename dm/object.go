@@ -2,6 +2,7 @@ package dm
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -169,7 +170,7 @@ const chunkSize = 5000000
 
 func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, token string) (result ObjectDetails, err error) {
 	total := int64(data.Len())
-	sessionId := fmt.Sprintf("%d", time.Now().Unix()) // FIXME: better hash including object name?
+	sessionId := fmt.Sprintf("%x-%d", md5.Sum([]byte(objectName)), time.Now().Unix())
 
 	wg := sync.WaitGroup{}
 	errChan := make(chan error)
