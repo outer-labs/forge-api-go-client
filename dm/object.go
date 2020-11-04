@@ -2,6 +2,7 @@ package dm
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"errors"
@@ -35,47 +36,47 @@ type BucketContent struct {
 
 // UploadObject adds to specified bucket the given data (can originate from a multipart-form or direct file read).
 // Return details on uploaded object, including the object URN. Check ObjectDetails struct.
-func (api BucketAPI) UploadObject(bucketKey string, objectName string, reader io.Reader) (result ObjectDetails, err error) {
+func (api BucketAPI) UploadObject(ctx context.Context, bucketKey string, objectName string, reader io.Reader) (result ObjectDetails, err error) {
 	bearer, err := api.Authenticate("data:write data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.BucketAPIPath
 
-	return uploadObject(path, bucketKey, objectName, reader, bearer.AccessToken)
+	return uploadObject(ctx, api.RateLimiter, path, bucketKey, objectName, reader, bearer.AccessToken)
 }
 
 // DownloadObject returns the reader stream of the response body
 // Don't forget to close it!
-func (api BucketAPI) DownloadObject(bucketKey string, objectName string) (reader io.ReadCloser, err error) {
+func (api BucketAPI) DownloadObject(ctx context.Context, bucketKey string, objectName string) (reader io.ReadCloser, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.BucketAPIPath
 
-	return downloadObject(path, bucketKey, objectName, bearer.AccessToken)
+	return downloadObject(ctx, api.RateLimiter, path, bucketKey, objectName, bearer.AccessToken)
 }
 
 // ListObjects returns the bucket contains along with details on each item.
-func (api BucketAPI) ListObjects(bucketKey, limit, beginsWith, startAt string) (result BucketContent, err error) {
+func (api BucketAPI) ListObjects(ctx context.Context, bucketKey, limit, beginsWith, startAt string) (result BucketContent, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.BucketAPIPath
 
-	return listObjects(path, bucketKey, limit, beginsWith, startAt, bearer.AccessToken)
+	return listObjects(ctx, api.RateLimiter, path, bucketKey, limit, beginsWith, startAt, bearer.AccessToken)
 }
 
 /*
  *	SUPPORT FUNCTIONS
  */
 
-func listObjects(path, bucketKey, limit, beginsWith, startAt, token string) (result BucketContent, err error) {
+func listObjects(ctx context.Context, limiter HttpRequestLimiter, path, bucketKey, limit, beginsWith, startAt, token string) (result BucketContent, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+bucketKey+"/objects",
 		nil,
 	)
@@ -118,7 +119,7 @@ func listObjects(path, bucketKey, limit, beginsWith, startAt, token string) (res
 
 const maxUploadThreshold = 100000000
 
-func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
+func uploadObject(ctx context.Context, limiter HttpRequestLimiter, path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
 	buf := &bytes.Buffer{}
 	nRead, err := io.Copy(buf, dataContent)
 	if err != nil {
@@ -126,20 +127,20 @@ func uploadObject(path, bucketKey, objectName string, dataContent io.Reader, tok
 	}
 
 	if nRead > maxUploadThreshold {
-		if _, err := putObjectChunked(path, bucketKey, objectName, buf, token); err != nil {
+		if _, err := putObjectChunked(ctx, limiter, path, bucketKey, objectName, buf, token); err != nil {
 			return ObjectDetails{}, err
 		}
 
-		return waitForObjectRecombination(path, bucketKey, objectName, token)
+		return waitForObjectRecombination(ctx, limiter, path, bucketKey, objectName, token)
 	}
 
-	return putObject(path, bucketKey, objectName, buf, token)
+	return putObject(ctx, limiter, path, bucketKey, objectName, buf, token)
 }
 
-func putObject(path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
+func putObject(ctx context.Context, limiter HttpRequestLimiter, path, bucketKey, objectName string, dataContent io.Reader, token string) (result ObjectDetails, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("PUT",
+	req, err := limiter.HttpRequest(ctx, "PUT",
 		path+"/"+bucketKey+"/objects/"+objectName,
 		dataContent)
 
@@ -168,7 +169,7 @@ func putObject(path, bucketKey, objectName string, dataContent io.Reader, token 
 
 const chunkSize = 5000000
 
-func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, token string) (result ObjectDetails, err error) {
+func putObjectChunked(ctx context.Context, limiter HttpRequestLimiter, path, bucketKey, objectName string, data *bytes.Buffer, token string) (result ObjectDetails, err error) {
 	total := int64(data.Len())
 	sessionId := fmt.Sprintf("%x-%d", md5.Sum([]byte(objectName)), time.Now().Unix())
 
@@ -196,7 +197,7 @@ func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, to
 				defer wg.Done()
 
 				task := http.Client{}
-				req, err := http.NewRequest("PUT",
+				req, err := limiter.HttpRequest(ctx, "PUT",
 					path+"/"+bucketKey+"/objects/"+objectName+"/resumable",
 					chunk,
 				)
@@ -255,10 +256,10 @@ func putObjectChunked(path, bucketKey, objectName string, data *bytes.Buffer, to
 // The Forge API doesn't give us many clues out when a chunked upload is recombined.
 // The only way to be sure is to poll the object details API until the SHA1 hash
 // is populated.
-func waitForObjectRecombination(path, bucketKey, objectName, token string) (result ObjectDetails, err error) {
+func waitForObjectRecombination(ctx context.Context, limiter HttpRequestLimiter, path, bucketKey, objectName, token string) (result ObjectDetails, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+bucketKey+"/objects/"+objectName+"/details",
 		nil,
 	)
@@ -304,10 +305,10 @@ func waitForObjectRecombination(path, bucketKey, objectName, token string) (resu
 	}
 }
 
-func downloadObject(path, bucketKey, objectName string, token string) (result io.ReadCloser, err error) {
+func downloadObject(ctx context.Context, limiter HttpRequestLimiter, path, bucketKey, objectName string, token string) (result io.ReadCloser, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+bucketKey+"/objects/"+objectName,
 		nil)
 

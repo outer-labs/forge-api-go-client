@@ -1,15 +1,15 @@
-package dm_test
+package dm
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"testing"
-
-	"github.com/outer-labs/forge-api-go-client/dm"
 )
 
 func TestBucketAPI_ListObjects(t *testing.T) {
+	ctx := context.Background()
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
 	clientSecret := os.Getenv("FORGE_CLIENT_SECRET")
@@ -17,13 +17,13 @@ func TestBucketAPI_ListObjects(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
+	bucketAPI := NewBucketAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	// testBucketName := "just_a_test_bucket"
 	testBucketName := os.Getenv("FORGE_OSS_TEST_BUCKET_KEY")
 
 	t.Run("List bucket content", func(t *testing.T) {
-		content, err := bucketAPI.ListObjects(testBucketName, "", "", "")
+		content, err := bucketAPI.ListObjects(ctx, testBucketName, "", "", "")
 		if err != nil {
 			t.Fatalf("Failed to list bucket content: %s\n", err.Error())
 		}
@@ -32,7 +32,7 @@ func TestBucketAPI_ListObjects(t *testing.T) {
 	})
 
 	t.Run("List bucket content of non-existing bucket", func(t *testing.T) {
-		content, err := bucketAPI.ListObjects(testBucketName+"hz", "", "", "")
+		content, err := bucketAPI.ListObjects(ctx, testBucketName+"hz", "", "", "")
 		if err == nil {
 			t.Fatalf("Expected to fail upon listing a non-existing bucket, but it didn't, got %#v", content)
 		}
@@ -40,6 +40,7 @@ func TestBucketAPI_ListObjects(t *testing.T) {
 }
 
 func TestBucketAPI_UploadSmallObject(t *testing.T) {
+	ctx := context.Background()
 
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
@@ -48,20 +49,20 @@ func TestBucketAPI_UploadSmallObject(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
+	bucketAPI := NewBucketAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	tempBucket := "some_temp_bucket_for_testing_small_upload"
 	testFilePath := "../assets/HelloWorld.rvt"
 
 	t.Run("Create a temp bucket to store an object", func(t *testing.T) {
-		_, err := bucketAPI.CreateBucket(tempBucket, "transient")
+		_, err := bucketAPI.CreateBucket(ctx, tempBucket, "transient")
 		if err != nil {
 			t.Error("Could not create temp bucket, got: ", err.Error())
 		}
 	})
 
 	t.Run("List objects in temp bucket, to make sure it is empty", func(t *testing.T) {
-		content, err := bucketAPI.ListObjects(tempBucket, "", "", "")
+		content, err := bucketAPI.ListObjects(ctx, tempBucket, "", "", "")
 		if err != nil {
 			t.Fatalf("Failed to list bucket content: %s\n", err.Error())
 		}
@@ -82,7 +83,7 @@ func TestBucketAPI_UploadSmallObject(t *testing.T) {
 			t.Fatal("Cannot read the testfile")
 		}
 
-		result, err := bucketAPI.UploadObject(tempBucket, "temp_file.rvt", data) // doesn't want []byte as data
+		result, err := bucketAPI.UploadObject(ctx, tempBucket, "temp_file.rvt", data) // doesn't want []byte as data
 
 		if err != nil {
 			t.Fatal("Could not upload the test object, got: ", err.Error())
@@ -94,7 +95,7 @@ func TestBucketAPI_UploadSmallObject(t *testing.T) {
 	})
 
 	t.Run("Delete the temp bucket", func(t *testing.T) {
-		err := bucketAPI.DeleteBucket(tempBucket)
+		err := bucketAPI.DeleteBucket(ctx, tempBucket)
 		if err != nil {
 			t.Error("Could not delete temp bucket, got: ", err.Error())
 		}
@@ -102,6 +103,7 @@ func TestBucketAPI_UploadSmallObject(t *testing.T) {
 }
 
 func TestBucketAPI_UploadLargeObject(t *testing.T) {
+	ctx := context.Background()
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
 	clientSecret := os.Getenv("FORGE_CLIENT_SECRET")
@@ -109,7 +111,7 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
+	bucketAPI := NewBucketAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	tempBucket := "temp_bucket_for_testing_resumable_upload"
 
@@ -119,14 +121,14 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 	data := bytes.NewBuffer(make([]byte, size))
 
 	t.Run("Create a temp bucket to store an object", func(t *testing.T) {
-		_, err := bucketAPI.CreateBucket(tempBucket, "transient")
+		_, err := bucketAPI.CreateBucket(ctx, tempBucket, "transient")
 		if err != nil {
 			t.Error("Could not create temp bucket, got: ", err.Error())
 		}
 	})
 
 	t.Run("List objects in temp bucket, to make sure it is empty", func(t *testing.T) {
-		content, err := bucketAPI.ListObjects(tempBucket, "", "", "")
+		content, err := bucketAPI.ListObjects(ctx, tempBucket, "", "", "")
 		if err != nil {
 			t.Fatalf("Failed to list bucket content: %s\n", err.Error())
 		}
@@ -136,7 +138,7 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 	})
 
 	t.Run("Upload an object into temp bucket", func(t *testing.T) {
-		result, err := bucketAPI.UploadObject(tempBucket, "temp_file_chunked.rvt", data) // doesn't want []byte as data
+		result, err := bucketAPI.UploadObject(ctx, tempBucket, "temp_file_chunked.rvt", data) // doesn't want []byte as data
 
 		if err != nil {
 			t.Fatal("Could not upload the test object, got: ", err.Error())
@@ -148,7 +150,7 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 	})
 
 	t.Run("Delete the temp bucket", func(t *testing.T) {
-		err := bucketAPI.DeleteBucket(tempBucket)
+		err := bucketAPI.DeleteBucket(ctx, tempBucket)
 		if err != nil {
 			t.Error("Could not delete temp bucket, got: ", err.Error())
 		}
@@ -156,6 +158,7 @@ func TestBucketAPI_UploadLargeObject(t *testing.T) {
 }
 
 func TestBucketAPI_DownloadObject(t *testing.T) {
+	ctx := context.Background()
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
 	clientSecret := os.Getenv("FORGE_CLIENT_SECRET")
@@ -163,19 +166,19 @@ func TestBucketAPI_DownloadObject(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
+	bucketAPI := NewBucketAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	tempBucket := "test_bucket_for_download"
 	testFilePath := "../assets/TestFile.txt"
-	bucketDetails, err := bucketAPI.GetBucketDetails(tempBucket)
+	bucketDetails, err := bucketAPI.GetBucketDetails(ctx, tempBucket)
 
 	// Check if bucket is still hanging around
 	if err != nil && bucketDetails.CreateDate == "" {
-		_, err := bucketAPI.CreateBucket(tempBucket, "transient")
+		_, err := bucketAPI.CreateBucket(ctx, tempBucket, "transient")
 		if err != nil {
 			t.Error("Could not create temp bucket, got: ", err.Error())
 		}
-		defer deleteBucket(bucketAPI, tempBucket, t)
+		defer deleteTempBucket(bucketAPI, tempBucket, t)
 	}
 
 	file, err := os.Open(testFilePath)
@@ -189,7 +192,7 @@ func TestBucketAPI_DownloadObject(t *testing.T) {
 		t.Fatal("Cannot read the testfile")
 	}
 
-	result, err := bucketAPI.UploadObject(tempBucket, "temp_file.txt", data) // doesn't want []byte as data
+	result, err := bucketAPI.UploadObject(ctx, tempBucket, "temp_file.txt", data) // doesn't want []byte as data
 
 	if err != nil {
 		t.Fatal("Could not upload the test object, got: ", err.Error())
@@ -199,7 +202,7 @@ func TestBucketAPI_DownloadObject(t *testing.T) {
 		t.Fatal("The test object was uploaded but it is zero-sized")
 	}
 
-	reader, err := bucketAPI.DownloadObject(tempBucket, "temp_file.txt")
+	reader, err := bucketAPI.DownloadObject(ctx, tempBucket, "temp_file.txt")
 	defer reader.Close()
 	if err != nil {
 		t.Fatal("Could not download the test object, got: ", err.Error())
@@ -214,8 +217,9 @@ func TestBucketAPI_DownloadObject(t *testing.T) {
 
 }
 
-func deleteBucket(bucketAPI dm.BucketAPI, bucketKey string, t *testing.T) {
-	err := bucketAPI.DeleteBucket(bucketKey)
+func deleteTempBucket(bucketAPI BucketAPI, bucketKey string, t *testing.T) {
+	ctx := context.Background()
+	err := bucketAPI.DeleteBucket(ctx, bucketKey)
 	if err != nil {
 		t.Error("Could not delete temp bucket, got: ", err.Error())
 	}

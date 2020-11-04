@@ -1,12 +1,13 @@
 package dm
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
 
 // ListBuckets returns a list of all buckets created or associated with Forge secrets used for token creation
-func (api FolderAPI) GetItemDetails(projectKey, itemKey string) (result ForgeResponseObject, err error) {
+func (api FolderAPI) GetItemDetails(ctx context.Context, projectKey, itemKey string) (result ForgeResponseObject, err error) {
 
 	// TO DO: take in optional header argument
 	// https://forge.autodesk.com/en/docs/data/v2/reference/http/projects-project_id-items-item_id-GET/
@@ -17,24 +18,10 @@ func (api FolderAPI) GetItemDetails(projectKey, itemKey string) (result ForgeRes
 
 	path := api.Host + api.FolderAPIPath
 
-	return getItemDetails(path, projectKey, itemKey, bearer.AccessToken)
+	return getItemDetails(ctx, api.RateLimiter, path, projectKey, itemKey, bearer.AccessToken)
 }
 
-// ListBuckets returns a list of all buckets created or associated with Forge secrets used for token creation
-func (api FolderAPI3L) GetItemDetails3L(projectKey, itemKey string) (result ForgeResponseObject, err error) {
-
-	// TO DO: take in optional header argument
-	// https://forge.autodesk.com/en/docs/data/v2/reference/http/projects-project_id-items-item_id-GET/
-	if err = api.Token.RefreshTokenIfRequired(api.Auth); err != nil {
-		return
-	}
-
-	path := api.Auth.Host + api.FolderAPIPath
-
-	return getItemDetails(path, projectKey, itemKey, api.Token.Bearer().AccessToken)
-}
-
-func (api FolderAPI) GetItemTip(projectKey, itemKey string) (result ForgeResponseObject, err error) {
+func (api FolderAPI) GetItemTip(ctx context.Context, projectKey, itemKey string) (result ForgeResponseObject, err error) {
 
 	// TO DO: take in optional header argument
 	// https://forge.autodesk.com/en/docs/data/v2/reference/http/projects-project_id-items-item_id-GET/
@@ -45,10 +32,10 @@ func (api FolderAPI) GetItemTip(projectKey, itemKey string) (result ForgeRespons
 
 	path := api.Host + api.FolderAPIPath
 
-	return getItemDetails(path, projectKey, itemKey, bearer.AccessToken)
+	return getItemDetails(ctx, api.RateLimiter, path, projectKey, itemKey, bearer.AccessToken)
 }
 
-func (api FolderAPI) GetItemVersions(projectKey, itemKey string) (result ForgeResponseArray, err error) {
+func (api FolderAPI) GetItemVersions(ctx context.Context, projectKey, itemKey string) (result ForgeResponseArray, err error) {
 
 	// TO DO: take in optional header argument
 	// https://forge.autodesk.com/en/docs/data/v2/reference/http/projects-project_id-items-item_id-GET/
@@ -59,19 +46,16 @@ func (api FolderAPI) GetItemVersions(projectKey, itemKey string) (result ForgeRe
 
 	path := api.Host + api.FolderAPIPath
 
-	return getItemVersions(path, projectKey, itemKey, "", "", "", "", "", "", bearer.AccessToken)
+	return getItemVersions(ctx, api.RateLimiter, path, projectKey, itemKey, "", "", "", "", "", "", bearer.AccessToken)
 }
 
 /*
  *	SUPPORT FUNCTIONS
  */
-func getItemDetails(path, projectKey, itemKey, token string) (result ForgeResponseObject, err error) {
+func getItemDetails(ctx context.Context, limiter HttpRequestLimiter, path, projectKey, itemKey, token string) (result ForgeResponseObject, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
-		path+"/"+projectKey+"/items/"+itemKey,
-		nil,
-	)
+	req, err := limiter.HttpRequest(ctx, "GET", path+"/"+projectKey+"/items/"+itemKey, nil)
 	if err != nil {
 		return
 	}
@@ -95,13 +79,10 @@ func getItemDetails(path, projectKey, itemKey, token string) (result ForgeRespon
 	return
 }
 
-func getItemTip(path, projectKey, itemKey, token string) (result ForgeResponseObject, err error) {
+func getItemTip(ctx context.Context, limiter HttpRequestLimiter, path, projectKey, itemKey, token string) (result ForgeResponseObject, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
-		path+"/"+projectKey+"/items/"+itemKey+"/tip",
-		nil,
-	)
+	req, err := limiter.HttpRequest(ctx, "GET", path+"/"+projectKey+"/items/"+itemKey+"/tip", nil)
 	if err != nil {
 		return
 	}
@@ -125,13 +106,10 @@ func getItemTip(path, projectKey, itemKey, token string) (result ForgeResponseOb
 	return
 }
 
-func getItemVersions(path, projectKey, itemKey, refType, id, extension, versionNumber, page, limit, token string) (result ForgeResponseArray, err error) {
+func getItemVersions(ctx context.Context, limiter HttpRequestLimiter, path, projectKey, itemKey, refType, id, extension, versionNumber, page, limit, token string) (result ForgeResponseArray, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
-		path+"/"+projectKey+"/items/"+itemKey+"/versions",
-		nil,
-	)
+	req, err := limiter.HttpRequest(ctx, "GET", path+"/"+projectKey+"/items/"+itemKey+"/versions", nil)
 	if err != nil {
 		return
 	}

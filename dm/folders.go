@@ -1,6 +1,7 @@
 package dm
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -11,18 +12,20 @@ import (
 type FolderAPI struct {
 	oauth.TwoLeggedAuth
 	FolderAPIPath string
+	RateLimiter   HttpRequestLimiter
 }
 
 // NewFolderAPIWithCredentials returns a Folder API client with default configurations
-func NewFolderAPIWithCredentials(ClientID string, ClientSecret string) FolderAPI {
+func NewFolderAPIWithCredentials(ClientID, ClientSecret string, limiter HttpRequestLimiter) FolderAPI {
 	return FolderAPI{
 		oauth.NewTwoLeggedClient(ClientID, ClientSecret),
 		"/data/v1/projects",
+		limiter,
 	}
 }
 
 // ListBuckets returns a list of all buckets created or associated with Forge secrets used for token creation
-func (api FolderAPI) GetFolderDetails(projectKey, folderKey string) (result ForgeResponseObject, err error) {
+func (api FolderAPI) GetFolderDetails(ctx context.Context, projectKey, folderKey string) (result ForgeResponseObject, err error) {
 
 	// TO DO: take in optional header arguments
 	// https://forge.autodesk.com/en/docs/data/v2/reference/http/projects-project_id-folders-folder_id-GET/
@@ -33,26 +36,26 @@ func (api FolderAPI) GetFolderDetails(projectKey, folderKey string) (result Forg
 
 	path := api.Host + api.FolderAPIPath
 
-	return getFolderDetails(path, projectKey, folderKey, bearer.AccessToken)
+	return getFolderDetails(ctx, api.RateLimiter, path, projectKey, folderKey, bearer.AccessToken)
 }
 
-func (api FolderAPI) GetFolderContents(projectKey, folderKey string) (result ForgeResponseArray, err error) {
+func (api FolderAPI) GetFolderContents(ctx context.Context, projectKey, folderKey string) (result ForgeResponseArray, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.FolderAPIPath
 
-	return getFolderContents(path, projectKey, folderKey, bearer.AccessToken)
+	return getFolderContents(ctx, api.RateLimiter, path, projectKey, folderKey, bearer.AccessToken)
 }
 
 /*
  *	SUPPORT FUNCTIONS
  */
-func getFolderDetails(path, projectKey, folderKey, token string) (result ForgeResponseObject, err error) {
+func getFolderDetails(ctx context.Context, limiter HttpRequestLimiter, path, projectKey, folderKey, token string) (result ForgeResponseObject, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+projectKey+"/folders/"+folderKey,
 		nil,
 	)
@@ -79,10 +82,12 @@ func getFolderDetails(path, projectKey, folderKey, token string) (result ForgeRe
 	return
 }
 
-func getFolderContents(path, projectKey, folderKey, token string) (result ForgeResponseArray, err error) {
+func getFolderContents(ctx context.Context, limiter HttpRequestLimiter, path, projectKey, folderKey, token string) (result ForgeResponseArray, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(
+		ctx,
+		"GET",
 		path+"/"+projectKey+"/folders/"+folderKey+"/contents",
 		nil,
 	)

@@ -2,6 +2,7 @@ package dm
 
 import (
 	// "fmt"
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -11,51 +12,49 @@ import (
 // HubAPI holds the necessary data for making calls to Forge Data Management service
 type HubAPI struct {
 	oauth.TwoLeggedAuth
-	HubAPIPath string
+	HubAPIPath  string
+	RateLimiter HttpRequestLimiter
 }
 
 var api HubAPI
 
 // NewHubAPIWithCredentials returns a Hub API client with default configurations
-func NewHubAPIWithCredentials(ClientID string, ClientSecret string) HubAPI {
+func NewHubAPIWithCredentials(ClientID, ClientSecret string, limiter HttpRequestLimiter) HubAPI {
 	return HubAPI{
 		oauth.NewTwoLeggedClient(ClientID, ClientSecret),
 		"/project/v1/hubs",
+		limiter,
 	}
 }
 
-func (api HubAPI) GetHubs() (result ForgeResponseArray, err error) {
+func (api HubAPI) GetHubs(ctx context.Context) (result ForgeResponseArray, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.HubAPIPath
 
-	return getHubs(path, bearer.AccessToken)
+	return getHubs(ctx, api.RateLimiter, path, bearer.AccessToken)
 }
 
-func (api HubAPI) GetHubDetails(hubKey string) (result ForgeResponseObject, err error) {
+func (api HubAPI) GetHubDetails(ctx context.Context, hubKey string) (result ForgeResponseObject, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.HubAPIPath
 
-	return getHubDetails(path, hubKey, bearer.AccessToken)
+	return getHubDetails(ctx, api.RateLimiter, path, hubKey, bearer.AccessToken)
 }
 
 /*
  *	SUPPORT FUNCTIONS
  */
 
-func getHubs(path, token string) (result ForgeResponseArray, err error) {
+func getHubs(ctx context.Context, limiter HttpRequestLimiter, path, token string) (result ForgeResponseArray, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
-		path,
-		nil,
-	)
-
+	req, err := limiter.HttpRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return
 	}
@@ -80,14 +79,10 @@ func getHubs(path, token string) (result ForgeResponseArray, err error) {
 	return
 }
 
-func getHubDetails(path, hubKey, token string) (result ForgeResponseObject, err error) {
+func getHubDetails(ctx context.Context, limiter HttpRequestLimiter, path, hubKey, token string) (result ForgeResponseObject, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
-		path+"/"+hubKey,
-		nil,
-	)
-
+	req, err := limiter.HttpRequest(ctx, "GET", path+"/"+hubKey, nil)
 	if err != nil {
 		return
 	}

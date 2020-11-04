@@ -1,12 +1,13 @@
 package dm
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
 
 // ListBuckets returns a list of all buckets created or associated with Forge secrets used for token creation
-func (api HubAPI) ListProjects(hubKey string) (result ForgeResponseArray, err error) {
+func (api HubAPI) ListProjects(ctx context.Context, hubKey string) (result ForgeResponseArray, err error) {
 
 	// TO DO: take in optional arguments for query params: id, ext, page, limit
 	// https://forge.autodesk.com/en/docs/data/v2/reference/http/hubs-hub_id-projects-GET/
@@ -17,36 +18,36 @@ func (api HubAPI) ListProjects(hubKey string) (result ForgeResponseArray, err er
 
 	path := api.Host + api.HubAPIPath
 
-	return listProjects(path, hubKey, "", "", "", "", bearer.AccessToken)
+	return listProjects(ctx, api.RateLimiter, path, hubKey, "", "", "", "", bearer.AccessToken)
 }
 
-func (api HubAPI) GetProjectDetails(hubKey, projectKey string) (result ForgeResponseObject, err error) {
+func (api HubAPI) GetProjectDetails(ctx context.Context, hubKey, projectKey string) (result ForgeResponseObject, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.HubAPIPath
 
-	return getProjectDetails(path, hubKey, projectKey, bearer.AccessToken)
+	return getProjectDetails(ctx, api.RateLimiter, path, hubKey, projectKey, bearer.AccessToken)
 }
 
-func (api HubAPI) GetTopFolders(hubKey, projectKey string) (result ForgeResponseArray, err error) {
+func (api HubAPI) GetTopFolders(ctx context.Context, hubKey, projectKey string) (result ForgeResponseArray, err error) {
 	bearer, err := api.Authenticate("data:read")
 	if err != nil {
 		return
 	}
 	path := api.Host + api.HubAPIPath
 
-	return getTopFolders(path, hubKey, projectKey, bearer.AccessToken)
+	return getTopFolders(ctx, api.RateLimiter, path, hubKey, projectKey, bearer.AccessToken)
 }
 
 /*
  *	SUPPORT FUNCTIONS
  */
-func listProjects(path, hubKey, id, extension, page, limit string, token string) (result ForgeResponseArray, err error) {
+func listProjects(ctx context.Context, limiter HttpRequestLimiter, path, hubKey, id, extension, page, limit string, token string) (result ForgeResponseArray, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+hubKey+"/projects",
 		nil,
 	)
@@ -90,10 +91,10 @@ func listProjects(path, hubKey, id, extension, page, limit string, token string)
 	return
 }
 
-func getProjectDetails(path, hubKey, projectKey, token string) (result ForgeResponseObject, err error) {
+func getProjectDetails(ctx context.Context, limiter HttpRequestLimiter, path, hubKey, projectKey, token string) (result ForgeResponseObject, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+hubKey+"/projects/"+projectKey,
 		nil,
 	)
@@ -121,10 +122,10 @@ func getProjectDetails(path, hubKey, projectKey, token string) (result ForgeResp
 	return
 }
 
-func getTopFolders(path, hubKey, projectKey, token string) (result ForgeResponseArray, err error) {
+func getTopFolders(ctx context.Context, limiter HttpRequestLimiter, path, hubKey, projectKey, token string) (result ForgeResponseArray, err error) {
 	task := http.Client{}
 
-	req, err := http.NewRequest("GET",
+	req, err := limiter.HttpRequest(ctx, "GET",
 		path+"/"+hubKey+"/projects/"+projectKey+"/topFolders",
 		nil,
 	)
