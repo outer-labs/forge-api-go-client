@@ -1,13 +1,13 @@
-package dm_test
+package dm
 
 import (
+	"context"
 	"os"
 	"testing"
-
-	"github.com/outer-labs/forge-api-go-client/dm"
 )
 
 func TestProjectAPI_GetProjects(t *testing.T) {
+	ctx := context.Background()
 
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
@@ -16,12 +16,12 @@ func TestProjectAPI_GetProjects(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	hubAPI := dm.NewHubAPIWithCredentials(clientID, clientSecret)
+	hubAPI := NewHubAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	testHubKey := os.Getenv("BIM_360_TEST_ACCOUNT_HUBKEY")
 
 	t.Run("List all projects under a given hub", func(t *testing.T) {
-		_, err := hubAPI.ListProjects(testHubKey)
+		_, err := hubAPI.ListProjects(ctx, testHubKey)
 
 		if err != nil {
 			t.Fatalf("Failed to get project details: %s\n", err.Error())
@@ -29,7 +29,7 @@ func TestProjectAPI_GetProjects(t *testing.T) {
 	})
 
 	t.Run("List all projects under non-existent hub (should fail)", func(t *testing.T) {
-		_, err := hubAPI.ListProjects(testHubKey + "30091981")
+		_, err := hubAPI.ListProjects(ctx, testHubKey+"30091981")
 
 		if err == nil {
 			t.Fatalf("Should fail getting getting projects for non-existing hub\n")
@@ -38,6 +38,7 @@ func TestProjectAPI_GetProjects(t *testing.T) {
 }
 
 func TestProjectAPI_GetProjectDetails(t *testing.T) {
+	ctx := context.Background()
 
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
@@ -46,13 +47,13 @@ func TestProjectAPI_GetProjectDetails(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	hubAPI := dm.NewHubAPIWithCredentials(clientID, clientSecret)
+	hubAPI := NewHubAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	testHubKey := os.Getenv("BIM_360_TEST_ACCOUNT_HUBKEY")
 	testProjectKey := os.Getenv("BIM_360_TEST_ACCOUNT_PROJECTKEY")
 
 	t.Run("List all projects under a given hub", func(t *testing.T) {
-		_, err := hubAPI.GetProjectDetails(testHubKey, testProjectKey)
+		_, err := hubAPI.GetProjectDetails(ctx, testHubKey, testProjectKey)
 
 		if err != nil {
 			t.Fatalf("Failed to get project details: %s\n", err.Error())
@@ -60,7 +61,7 @@ func TestProjectAPI_GetProjectDetails(t *testing.T) {
 	})
 
 	t.Run("List all projects under non-existent hub (should fail)", func(t *testing.T) {
-		_, err := hubAPI.GetProjectDetails(testHubKey, testProjectKey+"30091981")
+		_, err := hubAPI.GetProjectDetails(ctx, testHubKey, testProjectKey+"30091981")
 
 		if err == nil {
 			t.Fatalf("Should fail getting getting projects for non-existing hub\n")
@@ -69,6 +70,7 @@ func TestProjectAPI_GetProjectDetails(t *testing.T) {
 }
 
 func TestProjectAPI_GetTopFolders(t *testing.T) {
+	ctx := context.Background()
 
 	// prepare the credentials
 	clientID := os.Getenv("FORGE_CLIENT_ID")
@@ -77,13 +79,13 @@ func TestProjectAPI_GetTopFolders(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	hubAPI := dm.NewHubAPIWithCredentials(clientID, clientSecret)
+	hubAPI := NewHubAPIWithCredentials(clientID, clientSecret, DefaultRateLimiter)
 
 	testHubKey := os.Getenv("BIM_360_TEST_ACCOUNT_HUBKEY")
 	testProjectKey := os.Getenv("BIM_360_TEST_ACCOUNT_PROJECTKEY")
 
 	t.Run("List all projects under a given hub", func(t *testing.T) {
-		_, err := hubAPI.GetTopFolders(testHubKey, testProjectKey)
+		_, err := hubAPI.GetTopFolders(ctx, testHubKey, testProjectKey)
 
 		if err != nil {
 			t.Fatalf("Failed to get project details: %s\n", err.Error())
@@ -91,7 +93,7 @@ func TestProjectAPI_GetTopFolders(t *testing.T) {
 	})
 
 	t.Run("List all projects under non-existent hub (should fail)", func(t *testing.T) {
-		_, err := hubAPI.GetTopFolders(testHubKey, testProjectKey+"30091981")
+		_, err := hubAPI.GetTopFolders(ctx, testHubKey, testProjectKey+"30091981")
 
 		if err == nil {
 			t.Fatalf("Should fail getting getting projects for non-existing hub\n")
