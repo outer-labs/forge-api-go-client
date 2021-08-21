@@ -16,8 +16,6 @@ type HubAPI struct {
 	RateLimiter HttpRequestLimiter
 }
 
-var api HubAPI
-
 // NewHubAPIWithCredentials returns a Hub API client with default configurations
 func NewHubAPIWithCredentials(ClientID, ClientSecret string, limiter HttpRequestLimiter) HubAPI {
 	return HubAPI{
@@ -70,7 +68,7 @@ func getHubs(ctx context.Context, limiter HttpRequestLimiter, path, token string
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -98,7 +96,7 @@ func getHubDetails(ctx context.Context, limiter HttpRequestLimiter, path, hubKey
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 

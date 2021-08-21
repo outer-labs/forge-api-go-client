@@ -73,7 +73,7 @@ func getFolderDetails(ctx context.Context, limiter HttpRequestLimiter, path, pro
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -106,7 +106,7 @@ func getFolderContents(ctx context.Context, limiter HttpRequestLimiter, path, pr
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 

@@ -22,10 +22,10 @@ type ObjectDetails struct {
 	ObjectKey   string            `json:"objectKey"`
 	SHA1        string            `json:"sha1"`
 	Size        uint64            `json:"size"`
-	ContentType string            `json:"contentType, omitempty"`
+	ContentType string            `json:"contentType,omitempty"`
 	Location    string            `json:"location"`
-	BlockSizes  []int64           `json:"blockSizes, omitempty"`
-	Deltas      map[string]string `json:"deltas, omitempty"`
+	BlockSizes  []int64           `json:"blockSizes,omitempty"`
+	Deltas      map[string]string `json:"deltas,omitempty"`
 }
 
 // BucketContent reflects the response when query Data Management API for bucket content.
@@ -230,7 +230,7 @@ func putObjectChunked(ctx context.Context, limiter HttpRequestLimiter, path, buc
 				case http.StatusOK:
 					output := ObjectDetails{}
 					decoder := json.NewDecoder(response.Body)
-					err = decoder.Decode(&output)
+					_ = decoder.Decode(&output)
 					resultChan <- output
 
 				default:
@@ -288,7 +288,7 @@ func waitForObjectRecombination(ctx context.Context, limiter HttpRequestLimiter,
 			case http.StatusOK:
 				output := ObjectDetails{}
 				decoder := json.NewDecoder(response.Body)
-				err = decoder.Decode(&output)
+				_ = decoder.Decode(&output)
 
 				if output.SHA1 != "" {
 					return output, nil

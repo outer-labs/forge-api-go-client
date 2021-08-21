@@ -2,6 +2,7 @@ package md_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
@@ -21,7 +22,7 @@ func TestAPI_TranslateToSVF(t *testing.T) {
 		t.Skipf("No Forge credentials present; skipping test")
 	}
 
-	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret)
+	bucketAPI := dm.NewBucketAPIWithCredentials(clientID, clientSecret, dm.DefaultRateLimiter)
 	mdAPI := md.NewAPIWithCredentials(clientID, clientSecret)
 
 	tempBucketName := "go_testing_md_bucket"
@@ -30,7 +31,7 @@ func TestAPI_TranslateToSVF(t *testing.T) {
 	var testObject dm.ObjectDetails
 
 	t.Run("Create a temporary bucket", func(t *testing.T) {
-		_, err := bucketAPI.CreateBucket(tempBucketName, "transient")
+		_, err := bucketAPI.CreateBucket(context.Background(), tempBucketName, "transient")
 
 		if err != nil {
 			t.Errorf("Failed to create a bucket: %s\n", err.Error())
@@ -38,7 +39,7 @@ func TestAPI_TranslateToSVF(t *testing.T) {
 	})
 
 	t.Run("Get bucket details", func(t *testing.T) {
-		_, err := bucketAPI.GetBucketDetails(tempBucketName)
+		_, err := bucketAPI.GetBucketDetails(context.Background(), tempBucketName)
 
 		if err != nil {
 			t.Fatalf("Failed to get bucket details: %s\n", err.Error())
@@ -51,12 +52,12 @@ func TestAPI_TranslateToSVF(t *testing.T) {
 			t.Fatal("Cannot open testfile for reading")
 		}
 		defer file.Close()
-		data, err := ioutil.ReadAll(file)
+		_, err = ioutil.ReadAll(file)
 		if err != nil {
 			t.Fatal("Cannot read the testfile")
 		}
 
-		testObject, err = bucketAPI.UploadObject(tempBucketName, "temp_file.rvt", data)
+		testObject, err = bucketAPI.UploadObject(context.Background(), tempBucketName, "temp_file.rvt", file)
 
 		if err != nil {
 			t.Fatal("Could not upload the test object, got: ", err.Error())
@@ -81,7 +82,7 @@ func TestAPI_TranslateToSVF(t *testing.T) {
 	})
 
 	t.Run("Delete the temporary bucket", func(t *testing.T) {
-		err := bucketAPI.DeleteBucket(tempBucketName)
+		err := bucketAPI.DeleteBucket(context.Background(), tempBucketName)
 
 		if err != nil {
 			t.Fatalf("Failed to delete bucket: %s\n", err.Error())
@@ -132,11 +133,9 @@ func TestAPI_TranslateToSVF2_JSON_Creation(t *testing.T) {
 		t.Fatal("Could not marshal the reference example into JSON: ", err.Error())
 	}
 
-	if bytes.Compare(expected, output) != 0 {
+	if !bytes.Equal(expected, output) {
 		t.Fatalf("The translation params are not correct:\nexpected: %s\n created: %s",
 			string(expected),
 			string(output))
-
 	}
-
 }

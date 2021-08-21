@@ -115,6 +115,9 @@ func TestReCapAPIWorkflowUsingRemoteLinks(t *testing.T) {
 		defer result.Close()
 
 		tempFile, err := os.Stat(filename)
+		if err != nil {
+			t.Error(err.Error())
+		}
 
 		if tempFile.Size() <= 22 {
 			t.Error("The scene was processed, but the result file is abnormally small: ", tempFile.Size())
@@ -124,9 +127,6 @@ func TestReCapAPIWorkflowUsingRemoteLinks(t *testing.T) {
 		if err != nil {
 			t.Error(err.Error())
 		}
-
-		return
-
 	})
 
 	t.Run("Delete the scene", func(t *testing.T) {
@@ -259,6 +259,9 @@ func TestReCapAPIWorkflowUsingLocalFiles(t *testing.T) {
 		defer result.Close()
 
 		tempFile, err := os.Stat(filename)
+		if err != nil {
+			t.Error(err.Error())
+		}
 
 		if tempFile.Size() <= 22 {
 			t.Error("The scene was processed, but the result file is abnormally small: ", tempFile.Size())
@@ -268,9 +271,6 @@ func TestReCapAPIWorkflowUsingLocalFiles(t *testing.T) {
 		if err != nil {
 			t.Error(err.Error())
 		}
-
-		return
-
 	})
 
 	t.Run("Delete the scene", func(t *testing.T) {

@@ -6,20 +6,20 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
-	"math/rand"
 )
 
 func createPhotoScene(path string, name string, formats []string, sceneType string, token string) (scene PhotoScene, err error) {
 
 	if sceneType != "object" && sceneType != "aerial" {
 		err = errors.New("the scene type is not supported. Expecting 'object' or 'aerial', got " + sceneType)
-		return
+		return scene, err
 	}
 	task := http.Client{}
 
@@ -82,9 +82,9 @@ func addFileToSceneUsingLink(path string, photoSceneID string, link string, toke
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("photosceneid", photoSceneID)
-	writer.WriteField("type", "image")
-	writer.WriteField("file[0", link)
+	_ = writer.WriteField("photosceneid", photoSceneID)
+	_ = writer.WriteField("type", "image")
+	_ = writer.WriteField("file[0", link)
 
 	req, err := http.NewRequest("POST",
 		path+"/file",
@@ -115,7 +115,7 @@ func addFileToSceneUsingLink(path string, photoSceneID string, link string, toke
 
 	if err != nil {
 		err = errors.New("[JSON DECODING ERROR] " + err.Error())
-		return
+		return result, err
 	}
 
 	// This check is necessary, as there are cases when server returns status OK, but contains an error message
@@ -133,14 +133,14 @@ func addFileToSceneUsingFileData(path string, photoSceneID string, data []byte, 
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("photosceneid", photoSceneID)
-	writer.WriteField("type", "image")
-	formFile, err := writer.CreateFormFile("file[0]", "data" + strconv.Itoa(rand.Int()))
+	_ = writer.WriteField("photosceneid", photoSceneID)
+	_ = writer.WriteField("type", "image")
+	formFile, err := writer.CreateFormFile("file[0]", "data"+strconv.Itoa(rand.Int()))
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-	formFile.Write(data)
+	_, _ = formFile.Write(data)
 	writer.Close()
 
 	task := http.Client{}

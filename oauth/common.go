@@ -1,4 +1,5 @@
 package oauth
+
 import (
 	"time"
 )
@@ -14,11 +15,11 @@ type Bearer struct {
 
 // AuthData reflects the data common to 2-legged and 3-legged api calls
 type AuthData struct {
-	ClientID     	 string `json:"client_id,omitempty"`
-	ClientSecret 	 string `json:"client_secret,omitempty"`
-	Host         	 string `json:"host,omitempty"`
-	AuthPath     	 string `json:"auth_path"`
-	TokenExpireTime	 time.Time `json:"expire_time,omitempty"`   // Calculated expiration time against time.Now() for 3-legged oauth
+	ClientID        string    `json:"client_id,omitempty"`
+	ClientSecret    string    `json:"client_secret,omitempty"`
+	Host            string    `json:"host,omitempty"`
+	AuthPath        string    `json:"auth_path"`
+	TokenExpireTime time.Time `json:"expire_time,omitempty"` // Calculated expiration time against time.Now() for 3-legged oauth
 }
 
 // ForgeAuthenticator defines an interface that allows abstraction from

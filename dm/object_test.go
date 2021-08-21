@@ -203,7 +203,7 @@ func TestBucketAPI_DownloadObject(t *testing.T) {
 	}
 
 	reader, err := bucketAPI.DownloadObject(ctx, tempBucket, "temp_file.txt")
-	defer reader.Close()
+	defer reader.Close() //nolint
 	if err != nil {
 		t.Fatal("Could not download the test object, got: ", err.Error())
 	}

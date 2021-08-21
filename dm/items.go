@@ -70,34 +70,7 @@ func getItemDetails(ctx context.Context, limiter HttpRequestLimiter, path, proje
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
-		return
-	}
-
-	err = decoder.Decode(&result)
-
-	return
-}
-
-func getItemTip(ctx context.Context, limiter HttpRequestLimiter, path, projectKey, itemKey, token string) (result ForgeResponseObject, err error) {
-	task := http.Client{}
-
-	req, err := limiter.HttpRequest(ctx, "GET", path+"/"+projectKey+"/items/"+itemKey+"/tip", nil)
-	if err != nil {
-		return
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	response, err := task.Do(req)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-
-	decoder := json.NewDecoder(response.Body)
-	if response.StatusCode != http.StatusOK {
-		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -146,7 +119,7 @@ func getItemVersions(ctx context.Context, limiter HttpRequestLimiter, path, proj
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 

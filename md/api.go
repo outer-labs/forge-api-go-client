@@ -126,23 +126,23 @@ type FormatSpec struct {
 }
 
 type MetadataResult struct {
-	Data MetadataSpec `json:"data",omitempty`
+	Data MetadataSpec `json:"data,omitempty"`
 }
 
 type MetadataSpec struct {
-	Type     string     `json:"type",omitempty`
-	Metadata []ViewSpec `json:"metadata",omitempty`
+	Type     string     `json:"type,omitempty"`
+	Metadata []ViewSpec `json:"metadata,omitempty"`
 }
 
 type ViewSpec struct {
-	Name string `json:"name",omitempty`
-	Role string `json:"role",omitempty`
-	Guid string `json:"guid",omitempty`
+	Name string `json:"name,omitempty"`
+	Role string `json:"role,omitempty"`
+	Guid string `json:"guid,omitempty"`
 }
 
 type PropertiesResult struct {
-	Data   PropertiesSpec `json:"data",omitempty`
-	Result string         `json:"result",omitempty`
+	Data   PropertiesSpec `json:"data,omitempty"`
+	Result string         `json:"result,omitempty"`
 }
 
 type PropertiesSpec struct {
@@ -158,18 +158,18 @@ type ObjectSpec struct {
 }
 
 type TreeResult struct {
-	Data TreeSpec `json:"data",omitempty`
+	Data TreeSpec `json:"data,omitempty"`
 }
 
 type TreeSpec struct {
-	Type    string         `json:"type",omitempty`
-	Objects []TreeNodeSpec `json:"objects",omitempty`
+	Type    string         `json:"type,omitempty"`
+	Objects []TreeNodeSpec `json:"objects,omitempty"`
 }
 
 type TreeNodeSpec struct {
-	ObjectID int64          `json:"objectid",omitempty`
-	Name     string         `json:"name",omitempty`
-	Objects  []TreeNodeSpec `json:"objects",omitempty`
+	ObjectID int64          `json:"objectid,omitempty"`
+	Name     string         `json:"name,omitempty"`
+	Objects  []TreeNodeSpec `json:"objects,omitempty"`
 }
 
 // TranslateWithParams triggers translation job with settings specified in given TranslationParams

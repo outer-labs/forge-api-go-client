@@ -82,7 +82,7 @@ func listProjects(ctx context.Context, limiter HttpRequestLimiter, path, hubKey,
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func getProjectDetails(ctx context.Context, limiter HttpRequestLimiter, path, hu
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -144,7 +144,7 @@ func getTopFolders(ctx context.Context, limiter HttpRequestLimiter, path, hubKey
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 

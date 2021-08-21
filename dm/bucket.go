@@ -122,26 +122,26 @@ func getBucketDetails(ctx context.Context, limiter HttpRequestLimiter, path, buc
 	)
 
 	if err != nil {
-		return
+		return result, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
 	response, err := task.Do(req)
 	if err != nil {
-		return
+		return result, err
 	}
 	defer response.Body.Close()
 
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
-		return
+		_ = decoder.Decode(err)
+		return result, err
 	}
 
 	err = decoder.Decode(&result)
 
-	return
+	return result, err
 }
 
 func listBuckets(ctx context.Context, limiter HttpRequestLimiter, path, region, limit, startAt, token string) (result ListedBuckets, err error) {
@@ -178,7 +178,7 @@ func listBuckets(ctx context.Context, limiter HttpRequestLimiter, path, region, 
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -219,7 +219,7 @@ func createBucket(ctx context.Context, limiter HttpRequestLimiter, path, bucketK
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
@@ -249,7 +249,7 @@ func deleteBucket(ctx context.Context, limiter HttpRequestLimiter, path, bucketK
 	decoder := json.NewDecoder(response.Body)
 	if response.StatusCode != http.StatusOK {
 		err = &ErrorResult{StatusCode: response.StatusCode}
-		decoder.Decode(err)
+		_ = decoder.Decode(err)
 		return
 	}
 
