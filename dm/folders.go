@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/outer-labs/forge-api-go-client/oauth"
+	"github.com/ankitm123/forge-api-go-client/oauth"
 )
 
 // FolderAPI holds the necessary data for making calls to Forge Data Management service

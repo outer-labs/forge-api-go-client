@@ -1,6 +1,6 @@
 package dm
 
-import "github.com/outer-labs/forge-api-go-client/oauth"
+import "github.com/ankitm123/forge-api-go-client/oauth"
 
 type TokenRefresher interface {
 	Bearer() *oauth.Bearer

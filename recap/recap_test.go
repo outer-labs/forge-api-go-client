@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apprentice3d/forge-api-go-client/recap"
+	"github.com/ankitm123/forge-api-go-client/recap"
 )
 
 func TestReCapAPIWorkflowUsingRemoteLinks(t *testing.T) {

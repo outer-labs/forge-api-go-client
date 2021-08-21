@@ -8,8 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/apprentice3d/forge-api-go-client/dm"
-	"github.com/apprentice3d/forge-api-go-client/md"
+	"github.com/ankitm123/forge-api-go-client/dm"
+	"github.com/ankitm123/forge-api-go-client/md"
 )
 
 func TestAPI_TranslateToSVF(t *testing.T) {

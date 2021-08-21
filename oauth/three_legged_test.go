@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/apprentice3d/forge-api-go-client/oauth"
+	"github.com/ankitm123/forge-api-go-client/oauth"
 )
 
 func TestThreeLeggedAuth_Authorize(t *testing.T) {
