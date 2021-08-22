@@ -4,7 +4,7 @@ jobs:
   build:
     working_directory: ~/repo
     docker:
-      - image: circleci/golang:1.15.8
+      - image: golang:1.17.0-alpine3.14
     steps:
       - checkout
       - restore_cache:
@@ -17,6 +17,12 @@ jobs:
           key: go-mod-v4-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg/mod"
+      - run:
+          name: Run linters
+          command: |
+            wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.42.0
+            golangci-lint --version
+            CGO_ENABLED=0 golangci-lint run ./...
       - run:
           name: Run tests
           command: |
